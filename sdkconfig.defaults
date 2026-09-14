@@ -41,6 +41,6 @@ CONFIG_TINYUSB_CDC_ENABLED=n
 CONFIG_TINYUSB_CDC_COUNT=0
 CONFIG_TINYUSB_VENDOR_COUNT=0
 
-# --- TinyUSB host (the mouse side) ----------------------------------------------
-# The host stack is configured with CFG_TUH_* compile definitions in the top-level
-# CMakeLists.txt (esp_tinyusb's Kconfig has no host options). Nothing to set here.
+# --- Mouse (relay branch) -------------------------------------------------------
+# Mouse packets arrive on UART0 RX (same Micro-USB as the console) at 115200.
+# Keep console baud at the IDF default (115200) so scripts/relay.py matches.

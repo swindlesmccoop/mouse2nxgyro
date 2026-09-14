@@ -11,6 +11,7 @@
 #   ./scripts/dev.sh fullclean        idf.py fullclean
 #   ./scripts/dev.sh idf <args...>    any idf.py invocation
 #   ./scripts/dev.sh shell            interactive bash with idf.py on PATH
+#   ./scripts/dev.sh relay            python3 scripts/relay.py (runs on the HOST, needs pyserial)
 #   ./scripts/dev.sh purge            remove the image and the ccache volume
 #
 # Environment overrides:
@@ -93,6 +94,7 @@ case "$cmd" in
   fullclean)      run_in_container idf.py fullclean ;;
   idf)            run_in_container idf.py "$@" ;;
   shell)          run_in_container /bin/bash ;;
+  relay)          exec python3 "$repo_root/scripts/relay.py" "$@" ;;
   purge)
     docker image rm -f "$IMAGE" 2>/dev/null || true
     docker volume rm -f "$CCACHE_VOLUME" 2>/dev/null || true

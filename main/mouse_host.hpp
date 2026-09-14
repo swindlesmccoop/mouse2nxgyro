@@ -1,12 +1,11 @@
 #pragma once
 
-// USB mouse input via TinyUSB host on the MAX3421E.
+// Mouse input as seen by the 15 ms gyro loop.
 //
-// Runs the TinyUSB host stack in its own task and exposes the mouse state
-// through lock-free accumulators, so the 15 ms report loop can drain whatever
-// motion arrived since its previous tick without blocking on USB.
+// On the `relay` branch this is filled from UART0 (the board's Micro-USB
+// CP2102N): a PC process copies packets from the Feather's USB-C serial onto
+// this UART. Same lock-free accumulators as the MAX3421E host path on main.
 
-#include <atomic>
 #include <cstdint>
 
 namespace m2g::mouse_host {
@@ -20,25 +19,16 @@ enum Button : uint8_t {
   Forward = 1 << 4,
 };
 
-/// Start the MAX3421E glue, the TinyUSB host root port, and the host task.
 void start();
 
-/// True while a HID mouse interface is mounted and being polled.
+/// True while the relay is sending packets (Feather has a mouse and the PC
+/// script is forwarding). Goes false ~250 ms after the last valid line.
 bool mounted();
 
-/// Current button mask (Button bits). Level, not edge.
 uint8_t buttons();
-
-/// Return and clear the accumulated X / Y motion (mouse counts; HID sign
-/// convention: +x right, +y toward the user). Each call hands back everything
-/// that arrived since the previous call.
 int32_t take_dx();
 int32_t take_dy();
-
-/// Return and clear accumulated wheel detents (+ away from the user).
 int32_t take_wheel();
-
-/// Number of HID reports received since start (diagnostics: polling-rate check).
 uint32_t report_count();
 
 } // namespace m2g::mouse_host

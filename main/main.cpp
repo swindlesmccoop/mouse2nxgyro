@@ -1,7 +1,5 @@
-// mouse2nxgyro: a wired USB mouse becomes the gyro of an emulated Switch Pro Controller.
-//
-//   Switch dock  <-- native USB-OTG (device, espp::UsbDevice + GyroSwitchPro) --  ESP32-S3
-//   USB mouse    --> MAX3421E over SPI (TinyUSB host, mouse_host)             -->  ESP32-S3
+// mouse2nxgyro (relay branch): USB mouse -> Feather -> PC serial copy -> S3 UART
+// -> gyro -> Pro Controller on native USB-OTG (USB_DEV).
 //
 // USB device wiring, TX queue and sender-task structure follow espp's
 // components/switch_pro/example/main/switch_pro_example.cpp (MIT); see CREDITS.md.
@@ -64,12 +62,12 @@ void apply_buttons(espp::SwitchPro::InputReport &r, uint8_t mouse_btns, bool up,
 
 extern "C" void app_main(void) {
   espp::Logger logger({.tag = "mouse2nxgyro", .level = espp::Logger::Verbosity::INFO});
-  logger.info("mouse2nxgyro starting");
+  logger.info("mouse2nxgyro starting (relay: mouse via UART0 / Micro-USB)");
 
-  // --- Board: USB PHY to the USB_DEV plug, 5 V onward to the USB_HOST receptacle, LEDs off.
+  // --- Board: USB PHY on USB_DEV (Pro Controller). USB_HOST VBUS is unused here.
   board::init();
 
-  // --- Mouse side: MAX3421E + TinyUSB host in its own task.
+  // --- Mouse side: UART lines from scripts/relay.py (Feather USB-C serial).
   m2g::mouse_host::start();
 
   // --- Gyro model.
@@ -141,7 +139,7 @@ extern "C" void app_main(void) {
     logger.error("Failed to initialize USB device: {}", ec.message());
     return;
   }
-  logger.info("USB device ready; plug the USB_DEV connector into the Switch dock.");
+  logger.info("USB device ready; plug USB_DEV into the dock. Mouse: python3 scripts/relay.py");
 
   std::atomic<bool> running{true};
 
