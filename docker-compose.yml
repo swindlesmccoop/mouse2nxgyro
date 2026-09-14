@@ -1,0 +1,47 @@
+# Alternative to scripts/dev.sh for people who prefer compose.
+#
+#   UID=$(id -u) GID=$(id -g) docker compose run --rm idf idf.py build
+#   UID=$(id -u) GID=$(id -g) PORT=/dev/ttyUSB0 PORT_GID=$(stat -c %g /dev/ttyUSB0) \
+#     docker compose run --rm flash
+#   ... same with `monitor`
+#
+# The `flash` / `monitor` services require the board's UART port to exist; use the
+# `idf` service (no device mapping) for plain builds. PORT_GID is the numeric gid
+# owning the port on the host (dialout=20 on Debian/Ubuntu; uucp on Arch/CachyOS).
+services:
+  idf:
+    build:
+      context: .
+      args:
+        DEV_UID: ${UID:-1000}
+        DEV_GID: ${GID:-1000}
+    image: mouse2nxgyro-dev
+    user: "${UID:-1000}:${GID:-1000}"
+    environment:
+      HOME: /tmp
+    volumes:
+      - .:/project
+      - ccache:/ccache
+    working_dir: /project
+    stdin_open: true
+    tty: true
+
+  flash:
+    extends: idf
+    devices:
+      - "${PORT:-/dev/ttyUSB0}:${PORT:-/dev/ttyUSB0}"
+    group_add:
+      - "${PORT_GID:-20}"
+    command: ["idf.py", "-p", "${PORT:-/dev/ttyUSB0}", "flash"]
+
+  monitor:
+    extends: idf
+    devices:
+      - "${PORT:-/dev/ttyUSB0}:${PORT:-/dev/ttyUSB0}"
+    group_add:
+      - "${PORT_GID:-20}"
+    command: ["idf.py", "-p", "${PORT:-/dev/ttyUSB0}", "monitor"]
+
+volumes:
+  ccache:
+    name: mouse2nxgyro-dev-ccache

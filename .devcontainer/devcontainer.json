@@ -1,0 +1,33 @@
+{
+  "name": "mouse2nxgyro (ESP-IDF v6.0.1)",
+  "build": {
+    "dockerfile": "../Dockerfile",
+    "context": ".."
+  },
+  "workspaceFolder": "/project",
+  "workspaceMount": "source=${localWorkspaceFolder},target=/project,type=bind",
+  "mounts": [
+    "source=mouse2nxgyro-dev-ccache,target=/ccache,type=volume"
+  ],
+  "remoteUser": "dev",
+  "updateRemoteUserUID": true,
+  "runArgs": [
+    // Uncomment to flash/monitor from inside the devcontainer. The container will
+    // refuse to start if the device does not exist, so leave it commented when no
+    // board is attached and use ./scripts/dev.sh flash from the host instead.
+    // "--device=/dev/ttyUSB0",
+    // "--group-add=20"
+  ],
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-vscode.cpptools",
+        "ms-vscode.cmake-tools"
+      ],
+      "settings": {
+        "C_Cpp.default.compileCommands": "${workspaceFolder}/build/compile_commands.json"
+      }
+    }
+  },
+  "postCreateCommand": "git config --global --add safe.directory '*' && ./scripts/bootstrap.sh"
+}

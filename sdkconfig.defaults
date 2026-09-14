@@ -1,0 +1,46 @@
+# mouse2nxgyro -- ESP32-S3-USB-OTG board.
+#
+# Derived from espp components/switch_pro/example/sdkconfig.defaults (the proven
+# Switch Pro USB configuration) with board-specific additions.
+
+# The native USB-OTG peripheral only exists on the S3 (and S2/P4). Pin the target
+# so a bare `idf.py build` cannot fall back to the classic esp32.
+CONFIG_IDF_TARGET="esp32s3"
+
+# ESP32-S3-MINI-1-N8 module: 8 MB flash, no PSRAM. Give the app a 1.5 MB slot
+# (TinyUSB device + host + espp/fmt logging exceed the 1 MB default).
+CONFIG_ESPTOOLPY_FLASHSIZE_8MB=y
+CONFIG_PARTITION_TABLE_SINGLE_APP_LARGE=y
+
+# Console on UART0 (the board's Micro-USB CP2102N bridge), NOT USB-Serial-JTAG:
+# on the ESP32-S3 the USB-Serial-JTAG controller and USB-OTG share the same
+# internal USB PHY, and USB-OTG is handed to TinyUSB for the Pro Controller.
+# Running the console on USB-Serial-JTAG contends with it and reboot-loops the
+# device. USB-Serial-JTAG stays the SECONDARY console for early-boot ROM logs.
+CONFIG_ESP_CONSOLE_UART_DEFAULT=y
+CONFIG_ESP_CONSOLE_SECONDARY_USB_SERIAL_JTAG=y
+
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192
+CONFIG_FREERTOS_HZ=1000
+
+# Latency-sensitive firmware: optimize for speed rather than debuggability.
+CONFIG_COMPILER_OPTIMIZATION_PERF=y
+
+# --- TinyUSB device (the Switch side) ------------------------------------------
+# HID class driver (CFG_TUD_HID). The Pro Controller is one HID interface with an
+# interrupt IN (input reports) and interrupt OUT (host output reports / handshake).
+CONFIG_TINYUSB_HID_COUNT=1
+# HID endpoint buffer: reports are 64 bytes (1 report-id + 63 data). esp_tinyusb
+# 2.2.1 has no Kconfig for this (espp's example still sets a stale
+# CONFIG_TINYUSB_HID_BUFSIZE, which Kconfig ignores with a warning); TinyUSB's
+# CFG_TUD_HID_EP_BUFSIZE default is already 64, which is what we need.
+# No CDC or vendor interface: keep them disabled so nothing else claims an
+# interface and the descriptor is exactly one HID interface like a real Pro
+# Controller.
+CONFIG_TINYUSB_CDC_ENABLED=n
+CONFIG_TINYUSB_CDC_COUNT=0
+CONFIG_TINYUSB_VENDOR_COUNT=0
+
+# --- TinyUSB host (the mouse side) ----------------------------------------------
+# The host stack is configured with CFG_TUH_* compile definitions in the top-level
+# CMakeLists.txt (esp_tinyusb's Kconfig has no host options). Nothing to set here.
