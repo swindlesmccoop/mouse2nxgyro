@@ -69,13 +69,12 @@ ImuFrames MouseGyroModel::frames_for_rates(float yaw_dps, float pitch_dps, float
 }
 
 void MouseGyroModel::fill_accel(ImuFrame &f) const {
-  float gx = 0.0f, gy = 0.0f, gz = 1.0f; // lying flat: +1 G "up" on Z
-  if (cfg_.accel_mode == AccelMode::TrackedPitch) {
-    // Nose-down by p (positive gyro Y integrated): the world "up" vector gains a
-    // component along the body's forward (+X) axis. Sign to be confirmed on a
-    // real game; flip gx if the fused horizon moves the wrong way.
+  float gx = 0.0f, gy = 0.0f, gz = 0.0f;
+  if (cfg_.accel_mode == AccelMode::ConstantGravity) {
+    gz = 1.0f;
+  } else if (cfg_.accel_mode == AccelMode::TrackedPitch) {
     const float p = virtual_pitch_deg_ * kPi / 180.0f;
-    gx = std::sin(p);
+    gx = -std::sin(p);
     gz = std::cos(p);
   }
   f.acc[Axis::X] = clamp_i16(cfg_.cal.acc_raw_from_g(Axis::X, gx));

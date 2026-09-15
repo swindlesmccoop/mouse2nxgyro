@@ -14,13 +14,16 @@ class MouseGyroModel {
 public:
   enum class AccelMode {
     /// Accelerometer always reports the controller lying flat: (0, 0, +1 G).
-    /// Simple, drift-free, and what NXIC-style tools effectively do. Games that
-    /// fuse accel with gyro for pitch may fight it slightly.
+    /// Games that fuse accel with gyro pull look back to the horizon.
     ConstantGravity,
-    /// Integrate the virtual pitch we have been reporting and tilt the gravity
-    /// vector to match, so gyro and accel describe the same physical motion.
-    /// Experimental; test on a real game before defaulting to it.
+    /// Tilt gravity to match mouse-integrated pitch. Wrong for mouse aiming:
+    /// after a short flick the tilt hits ~90 deg and the camera sticks to the
+    /// sky or floor (and can 180-flip at that stop).
     TrackedPitch,
+    /// Report 0 G. Typical AHRS skips accel correction when |a| is not ~1 G,
+    /// so look is gyro-rate only: it holds when the mouse stops, without a
+    /// horizon or a pitch-pole magnet.
+    NoCorrection,
   };
 
   struct Config {
