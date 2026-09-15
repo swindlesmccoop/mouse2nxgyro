@@ -1,0 +1,6 @@
+# Tiny Python runtime for scripts/relay.py. Host: nothing but Docker.
+# Serial nodes are passed through with `docker run --device`.
+FROM debian:bookworm-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends python3 \
+    && rm -rf /var/lib/apt/lists/*

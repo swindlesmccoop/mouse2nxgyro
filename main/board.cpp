@@ -30,12 +30,13 @@ void init() {
   // explicitly so nothing can flip it.
   configure_output(usb_sel, false);
 
-  // 5 V distribution. Order matters per the schematic note ("Switch to VBUS_HOST
-  // power mode: step 1 BOOST_EN=0, step 2 DEV_VBUS_EN=1"): never have both high.
+  // Relay branch: mouse is on the Feather, not USB_HOST. Do not route dock 5 V
+  // into the unused host jack (that was for a MAX3421E mouse).
   configure_output(boost_en, false);
-  configure_output(dev_vbus_en, true);
-  configure_output(limit_en, true);
-  configure_input(over_current_flag, false);
+  configure_output(dev_vbus_en, false);
+  configure_output(limit_en, false);
+  // MIC2005 FLAG is open-drain, active low. Board has a pull-up; idle = high.
+  configure_input(over_current_flag, true);
 
   // LEDs off until the respective link is up.
   configure_output(led_green, false);
@@ -57,6 +58,6 @@ bool button_up() { return gpio_get_level(pins::btn_up) == 0; }
 bool button_down() { return gpio_get_level(pins::btn_dw) == 0; }
 bool button_menu() { return gpio_get_level(pins::btn_menu) == 0; }
 
-bool over_current() { return gpio_get_level(pins::over_current_flag) == 1; }
+bool over_current() { return gpio_get_level(pins::over_current_flag) == 0; }
 
 } // namespace board

@@ -47,16 +47,13 @@ inline constexpr bool synthetic_sweep_enabled = true;
 inline constexpr float synthetic_dps = 90.0f;
 
 // --- Mouse button -> controller button -----------------------------------------------
-/// Convention from S-thogo/NXIC (MIT): left click = ZR (fire), right click = R
-/// (aim/ADS in Splatoon-style layouts), middle click = right-stick press.
-/// Back/Forward (thumb) buttons are mapped to B/A so menus can be navigated
-/// from the mouse.
+/// Left = L, right = R, forward = ZL, back = ZR. Middle click = right-stick press.
 struct MouseButtonMap {
-  uint8_t zr = mouse_host::Left;
+  uint8_t l = mouse_host::Left;
   uint8_t r = mouse_host::Right;
+  uint8_t zl = mouse_host::Forward;
+  uint8_t zr = mouse_host::Back;
   uint8_t thumb_r = mouse_host::Middle;
-  uint8_t b = mouse_host::Back;
-  uint8_t a = mouse_host::Forward;
 };
 inline constexpr MouseButtonMap mouse_buttons{};
 

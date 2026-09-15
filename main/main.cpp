@@ -46,16 +46,14 @@ m2g::MouseGyroModel::Config make_model_config() {
 /// Apply mouse and board buttons to the Pro Controller report.
 void apply_buttons(espp::SwitchPro::InputReport &r, uint8_t mouse_btns, bool up, bool down) {
   using namespace m2g::config;
+  const bool grip = up && down; // L+R for the "Change Grip/Order" prompt
+  r.set_button_l((mouse_btns & mouse_buttons.l) || grip);
+  r.set_button_r((mouse_btns & mouse_buttons.r) || grip);
+  r.set_button_zl(mouse_btns & mouse_buttons.zl);
   r.set_button_zr(mouse_btns & mouse_buttons.zr);
-  r.set_button_r(mouse_btns & mouse_buttons.r);
   r.set_button_thumb_r(mouse_btns & mouse_buttons.thumb_r);
-  r.set_button_b(mouse_btns & mouse_buttons.b);
-  r.set_button_a((mouse_btns & mouse_buttons.a) || board::button_ok());
+  r.set_button_a(board::button_ok());
   r.set_button_home(board::button_menu());
-  if (up && down) { // both: L+R for the "Change Grip/Order" screen
-    r.set_button_l(true);
-    r.set_button_r(true);
-  }
 }
 
 } // namespace
