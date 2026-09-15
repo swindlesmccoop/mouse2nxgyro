@@ -23,11 +23,16 @@ std::atomic<int32_t> acc_wheel{0};
 std::atomic<uint8_t> btn_mask{0};
 std::atomic<bool> is_mounted{false};
 std::atomic<uint32_t> reports{0};
-std::atomic<int64_t> last_rx_us{0};
+std::atomic<int64_t> last_m_us{0};
+std::atomic<int64_t> last_c_us{0};
 std::atomic<uint32_t> raw_lines{0};
+std::atomic<int32_t> lx_milli{0};
+std::atomic<int32_t> ly_milli{0};
+std::atomic<uint32_t> pad_bits{0};
+std::atomic<bool> pad_is_live{false};
 
 constexpr uart_port_t kUart = UART_NUM_0;
-constexpr int kLineMax = 64;
+constexpr int kLineMax = 96;
 
 void apply_line(const char *line) {
   raw_lines.fetch_add(1);
@@ -38,18 +43,43 @@ void apply_line(const char *line) {
   const char *s = line;
   while (*s == ' ' || *s == '\t')
     ++s;
-  if (*s != m2g::protocol::prefix)
+  const int64_t now = esp_timer_get_time();
+
+  if (*s == m2g::protocol::mouse_prefix) {
+    int dx = 0, dy = 0, buttons = 0;
+    const int n = std::sscanf(s, "M %d %d %d", &dx, &dy, &buttons);
+    if (n < 2)
+      return;
+    acc_dx.fetch_add(dx);
+    acc_dy.fetch_add(dy);
+    if (n >= 3)
+      btn_mask.store(static_cast<uint8_t>(buttons & 0x1F));
+    reports.fetch_add(1);
+    last_m_us.store(now);
+    is_mounted.store(true);
     return;
-  int dx = 0, dy = 0, buttons = 0;
-  const int n = std::sscanf(s, "M %d %d %d", &dx, &dy, &buttons);
-  if (n < 3)
-    return;
-  acc_dx.fetch_add(dx);
-  acc_dy.fetch_add(dy);
-  btn_mask.store(static_cast<uint8_t>(buttons & 0x1F));
-  reports.fetch_add(1);
-  last_rx_us.store(esp_timer_get_time());
-  is_mounted.store(true);
+  }
+
+  if (*s == m2g::protocol::pad_prefix) {
+    int lx = 0, ly = 0;
+    unsigned bits = 0;
+    if (std::sscanf(s, "C %d %d %u", &lx, &ly, &bits) < 3)
+      return;
+    if (lx > 1000)
+      lx = 1000;
+    if (lx < -1000)
+      lx = -1000;
+    if (ly > 1000)
+      ly = 1000;
+    if (ly < -1000)
+      ly = -1000;
+    lx_milli.store(lx);
+    ly_milli.store(ly);
+    pad_bits.store(bits);
+    last_c_us.store(now);
+    pad_is_live.store(true);
+    is_mounted.store(true);
+  }
 }
 
 void rx_task(void * /*param*/) {
@@ -60,10 +90,16 @@ void rx_task(void * /*param*/) {
     uint8_t byte = 0;
     const int n = uart_read_bytes(kUart, &byte, 1, pdMS_TO_TICKS(20));
     const int64_t now = esp_timer_get_time();
-    if (is_mounted.load() &&
-        (now - last_rx_us.load()) > (static_cast<int64_t>(m2g::protocol::stale_ms) * 1000)) {
+    const int64_t stale = static_cast<int64_t>(m2g::protocol::stale_ms) * 1000;
+    if (is_mounted.load() && (now - last_m_us.load()) > stale && (now - last_c_us.load()) > stale) {
       is_mounted.store(false);
       btn_mask.store(0);
+    }
+    if (pad_is_live.load() && (now - last_c_us.load()) > stale) {
+      pad_is_live.store(false);
+      lx_milli.store(0);
+      ly_milli.store(0);
+      pad_bits.store(0);
     }
     if (n != 1)
       continue;
@@ -90,10 +126,6 @@ void rx_task(void * /*param*/) {
 namespace m2g::mouse_host {
 
 void start() {
-  // Console already owns UART0 TX (ESP_LOG on Micro-USB). Re-install the driver
-  // with a real RX ring so uart_read_bytes() sees the relay's M-lines. Skipping
-  // install when "already installed" left RX attached only to VFS stdin, which
-  // nobody reads — so the PC forwarded packets and this side stayed absent.
   fflush(stdout);
   fsync(fileno(stdout));
 
@@ -119,7 +151,7 @@ void start() {
   uart_flush_input(kUart);
 
   xTaskCreate(rx_task, "mouse_uart", 3072, nullptr, 6, nullptr);
-  ESP_LOGI(TAG, "listening for relay packets on UART0 @ %u baud. ./scripts/dev.sh relay",
+  ESP_LOGI(TAG, "listening for M/C packets on UART0 @ %u baud. ./scripts/dev.sh relay",
            m2g::protocol::baud);
 }
 
@@ -129,5 +161,9 @@ int32_t take_dx() { return acc_dx.exchange(0); }
 int32_t take_dy() { return acc_dy.exchange(0); }
 int32_t take_wheel() { return acc_wheel.exchange(0); }
 uint32_t report_count() { return reports.load(); }
+bool pad_live() { return pad_is_live.load(); }
+float stick_lx() { return static_cast<float>(lx_milli.load()) / 1000.0f; }
+float stick_ly() { return static_cast<float>(ly_milli.load()) / 1000.0f; }
+uint32_t pad_buttons() { return pad_bits.load(); }
 
 } // namespace m2g::mouse_host

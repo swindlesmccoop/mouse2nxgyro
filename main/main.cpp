@@ -24,6 +24,7 @@
 #include "imu_calibration.hpp"
 #include "mouse_gyro_model.hpp"
 #include "mouse_host.hpp"
+#include "mouse_protocol.hpp"
 
 using namespace std::chrono_literals;
 
@@ -43,10 +44,35 @@ m2g::MouseGyroModel::Config make_model_config() {
   return c;
 }
 
-/// Apply mouse and board buttons to the Pro Controller report.
+/// Apply mouse, keyboard-mapped pad, and board buttons to the Pro Controller report.
 void apply_buttons(espp::SwitchPro::InputReport &r, uint8_t mouse_btns, bool up, bool down) {
   using namespace m2g::config;
-  const bool grip = up && down; // L+R for the "Change Grip/Order" prompt
+  using namespace m2g::protocol;
+  const bool grip = up && down;
+  const bool live = m2g::mouse_host::pad_live();
+  const uint32_t bits = live ? m2g::mouse_host::pad_buttons() : 0;
+
+  if (live) {
+    r.set_button_a((bits & btn_a) || board::button_ok());
+    r.set_button_b(bits & btn_b);
+    r.set_button_x(bits & btn_x);
+    r.set_button_y(bits & btn_y);
+    r.set_button_l((bits & btn_l) || grip);
+    r.set_button_r((bits & btn_r) || grip);
+    r.set_button_zl(bits & btn_zl);
+    r.set_button_zr(bits & btn_zr);
+    r.set_button_minus(bits & btn_minus);
+    r.set_button_plus(bits & btn_plus);
+    r.set_button_thumb_l(bits & btn_l3);
+    r.set_button_thumb_r(bits & btn_r3);
+    r.set_button_home((bits & btn_home) || board::button_menu());
+    r.set_button_capture(bits & btn_capture);
+    r.set_dpad((bits & btn_dpad_up) != 0, (bits & btn_dpad_down) != 0,
+               (bits & btn_dpad_left) != 0, (bits & btn_dpad_right) != 0);
+    r.set_left_joystick(m2g::mouse_host::stick_lx(), m2g::mouse_host::stick_ly());
+    return;
+  }
+
   r.set_button_l((mouse_btns & mouse_buttons.l) || grip);
   r.set_button_r((mouse_btns & mouse_buttons.r) || grip);
   r.set_button_zl(mouse_btns & mouse_buttons.zl);

@@ -6,9 +6,10 @@ Linux only. Uses the Python stdlib (termios + sysfs) — no pyserial, no pip.
   ./scripts/dev.sh relay
   ./scripts/dev.sh relay --s3 /dev/ttyUSB0 --feather /dev/ttyACM0
 
-Feather lines that start with 'M' are written to the S3 (UART0 RX). Everything
-the S3 prints (ESP_LOG) is shown here — this *is* the serial monitor for the
-S3; do not also run idf.py monitor (it would steal the port).
+Feather lines that start with 'M' or 'K' are turned into gyro + pad state
+using config/binds.json and written to the S3. Everything the S3 prints
+(ESP_LOG) is shown here — this *is* the serial monitor for the S3; do not
+also run idf.py monitor (it would steal the port).
 """
 from __future__ import annotations
 
@@ -22,6 +23,8 @@ import termios
 import threading
 import time
 from pathlib import Path
+
+from binds import Binds
 
 BAUD = 115200
 
@@ -158,11 +161,17 @@ def main() -> int:
 
     print(f"S3      {describe(s3_path)} @ {BAUD}", flush=True)
     print(f"Feather {describe(feather_path)} @ {BAUD}", flush=True)
+
+    binds_path = Path(__file__).resolve().parent.parent / "config" / "binds.json"
+    binds = Binds(binds_path)
+    msg = binds.reload(force=True)
+    if msg:
+        print(f"[binds] {msg}", flush=True)
+
     print(
-        "forwarding M-lines Feather -> S3; S3 logs below. Ctrl-C to stop.\n"
-        "Working = [relay] count goes up when you move the mouse, S3 says "
-        "'mouse: mounted', yellow LED on. If you plugged a cable after this "
-        "started, Ctrl-C and run again.\n",
+        "forwarding M/K -> S3 (gyro + pad from config/binds.json). Ctrl-C to stop.\n"
+        "WASD = left stick. Edit binds.json; it reloads on save. "
+        "If you plugged a cable after this started, Ctrl-C and run again.\n",
         flush=True,
     )
 
@@ -170,9 +179,17 @@ def main() -> int:
     feather = SerialPort(feather_path)
     stop = threading.Event()
     write_lock = threading.Lock()
-    stats = {"m_lines": 0, "m_last": time.monotonic()}
+    stats = {"m_lines": 0, "k_lines": 0, "m_last": time.monotonic()}
+    mouse_btns = 0
+    kbd = {"mods": 0, "keys": [0, 0, 0, 0, 0, 0]}
+
+    def emit_pad() -> None:
+        lx, ly, bits = binds.map(kbd["mods"], kbd["keys"], mouse_btns)
+        with write_lock:
+            s3.write(f"C {lx} {ly} {bits}\n".encode())
 
     def from_feather() -> None:
+        nonlocal mouse_btns
         buf = b""
         while not stop.is_set():
             chunk = feather.read(256)
@@ -185,9 +202,27 @@ def main() -> int:
                 if not line:
                     continue
                 if line.startswith(b"M"):
+                    parts = line.split()
+                    if len(parts) >= 4:
+                        try:
+                            mouse_btns = int(parts[3])
+                        except ValueError:
+                            pass
                     with write_lock:
                         s3.write(line + b"\n")
+                    emit_pad()
                     stats["m_lines"] += 1
+                    stats["m_last"] = time.monotonic()
+                elif line.startswith(b"K"):
+                    parts = line.split()
+                    if len(parts) >= 8:
+                        try:
+                            kbd["mods"] = int(parts[1])
+                            kbd["keys"] = [int(parts[i]) for i in range(2, 8)]
+                        except ValueError:
+                            pass
+                    emit_pad()
+                    stats["k_lines"] += 1
                     stats["m_last"] = time.monotonic()
                 else:
                     print(f"[feather] {line.decode('utf-8', 'replace')}", flush=True)
@@ -205,18 +240,24 @@ def main() -> int:
                 print(line.decode("utf-8", "replace"), flush=True)
 
     def heartbeat() -> None:
-        while not stop.wait(5.0):
+        while not stop.wait(2.0):
+            note = binds.reload()
+            if note and note.startswith("loaded"):
+                print(f"[binds] {note}", flush=True)
+            elif note:
+                print(f"[binds] {note}", flush=True)
             n = stats["m_lines"]
+            k = stats["k_lines"]
             age = time.monotonic() - stats["m_last"]
-            if n == 0:
+            if n == 0 and k == 0:
                 print(
-                    "[relay] no mouse packets yet — mouse in Feather USB-A? "
+                    "[relay] no HID packets yet — mouse/keyboard in the hub on Feather USB-A? "
                     "If you plugged it after start, Ctrl-C and rerun.",
                     flush=True,
                 )
             else:
                 print(
-                    f"[relay] ok: {n} M-lines forwarded, last packet {age:.1f}s ago",
+                    f"[relay] ok: {n} M, {k} K, last packet {age:.1f}s ago",
                     flush=True,
                 )
 

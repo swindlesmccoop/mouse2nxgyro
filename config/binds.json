@@ -1,0 +1,29 @@
+{
+  "stick": {
+    "up": "w",
+    "down": "s",
+    "left": "a",
+    "right": "d"
+  },
+  "keys": {
+    "space": "b",
+    "lshift": "a",
+    "e": "x",
+    "q": "y",
+    "r": "plus",
+    "f": "minus",
+    "escape": "home",
+    "tab": "capture",
+    "up": "dpad_up",
+    "down": "dpad_down",
+    "left": "dpad_left",
+    "right": "dpad_right"
+  },
+  "mouse": {
+    "left": "l",
+    "right": "r",
+    "forward": "zl",
+    "back": "zr",
+    "middle": "r3"
+  }
+}

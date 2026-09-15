@@ -31,4 +31,10 @@ int32_t take_dy();
 int32_t take_wheel();
 uint32_t report_count();
 
+/// True while a C-line (keyboard/mouse-mapped pad) arrived within stale_ms.
+bool pad_live();
+float stick_lx();
+float stick_ly();
+uint32_t pad_buttons();
+
 } // namespace m2g::mouse_host

@@ -46,8 +46,11 @@ inline constexpr MouseGyroModel::AccelMode accel_mode = MouseGyroModel::AccelMod
 inline constexpr bool synthetic_sweep_enabled = true;
 inline constexpr float synthetic_dps = 90.0f;
 
-// --- Mouse button -> controller button -----------------------------------------------
-/// Left = L, right = R, forward = ZL, back = ZR. Middle click = right-stick press.
+// --- Mouse / keyboard binds ----------------------------------------------------------
+/// Keyboard + mouse-button -> Pro Controller mapping lives in
+/// `config/binds.json` (loaded by scripts/relay.py). Restart the relay after
+/// edits, or wait ~2 s for a reload. Fallback below is only used if no C-line
+/// has arrived (old relay).
 struct MouseButtonMap {
   uint8_t l = mouse_host::Left;
   uint8_t r = mouse_host::Right;
