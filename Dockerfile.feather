@@ -1,7 +1,10 @@
 # Pico SDK toolchain for the Feather RP2040 USB Host firmware.
 # Host: nothing but Docker. Output is a UF2 you copy in BOOTSEL mode.
 #
-# Pins: pico-sdk 2.1.1, Pico-PIO-USB 0.7.2, Debian bookworm gcc-arm-none-eabi.
+# Pins: pico-sdk 2.1.1, Pico-PIO-USB 0.6.1, Debian bookworm gcc-arm-none-eabi.
+#
+# Pico-PIO-USB stays on 0.6.1: on 0.7.2 a keyboard behind a hub never
+# enumerates (mice still do). 0.5.3 no longer builds against pico-sdk 2.x.
 FROM debian:bookworm-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -11,7 +14,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && git config --system --add safe.directory '*'
 
 ARG PICO_SDK_REF=2.1.1
-ARG PICO_PIO_USB_REF=0.7.2
+ARG PICO_PIO_USB_REF=0.6.1
 
 RUN git clone --depth 1 --branch "${PICO_SDK_REF}" https://github.com/raspberrypi/pico-sdk.git /opt/pico-sdk \
  && git -C /opt/pico-sdk submodule update --init lib/tinyusb \

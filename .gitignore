@@ -6,6 +6,18 @@ managed_components/
 dependencies.lock
 
 build-feather/
+.piousb/
+
+# Compiled firmware images and toolchain outputs, wherever they end up
+*.uf2
+*.elf
+*.bin
+*.hex
+*.dis
+*.map
+*.o
+*.a
+
 __pycache__/
 *.pyc
 *.swp

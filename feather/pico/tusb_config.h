@@ -24,10 +24,12 @@
 #define CFG_TUD_HID_EP_BUFSIZE 64
 #define CFG_TUD_VENDOR 0
 
-#define CFG_TUH_ENUMERATION_BUFSIZE 512
+#define CFG_TUH_ENUMERATION_BUFSIZE 2048
 #define CFG_TUH_HUB 1
-#define CFG_TUH_DEVICE_MAX 4
-#define CFG_TUH_HID 4
+#define CFG_TUH_DEVICE_MAX 8
+// Keyboard and mouse can each expose three HID interfaces. Only the boot
+// keyboard and boot mouse ones are polled; the rest are opened but never armed.
+#define CFG_TUH_HID 8
 #define CFG_TUH_HID_EPIN_BUFSIZE 64
 #define CFG_TUH_HID_EPOUT_BUFSIZE 64
 

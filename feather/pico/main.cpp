@@ -1,5 +1,10 @@
 // Dual-role: USB-C = wired Switch Pro Controller; USB-A (PIO) = hub + mouse + keyboard.
 // Board: Adafruit Feather RP2040 with USB Type A Host (D+ GPIO16, 5V boost GPIO18).
+//
+// The dual-role startup (120 MHz clock, PIO host configured and run on core1,
+// device stack on core0) follows sekigon-gonnoc/Pico-PIO-USB
+// examples/host_hid_to_device_cdc/host_hid_to_device_cdc.c at tag 0.6.1,
+// MIT License, Copyright (c) 2019 Ha Thach (tinyusb.org). See CREDITS.md.
 
 #include <atomic>
 #include <cstring>
@@ -21,6 +26,7 @@
 
 #define PIN_USB_HOST_DP 16
 #define PIN_5V_EN 18
+#define PIN_LED 13
 
 static std::atomic<int> acc_dx{0};
 static std::atomic<int> acc_dy{0};
@@ -34,15 +40,28 @@ static std::atomic<unsigned> kbd_key2{0};
 static std::atomic<unsigned> kbd_key3{0};
 static std::atomic<unsigned> kbd_key4{0};
 static std::atomic<unsigned> kbd_key5{0};
+static std::atomic<bool> kbd_any_key{false};
 
 static uint8_t mouse_addr, mouse_inst;
 static uint8_t kbd_addr, kbd_inst;
 static bool mouse_slot;
 static bool kbd_slot;
+static bool mouse_armed;
+static bool kbd_armed;
 
 static PicoSwitchPro g_pad;
 static bool g_need_attach = true;
 static HidReply g_held_reply{};
+
+// Runs on core1 only, alongside tuh_task().
+static void host_housekeeping(void) {
+  // A receive that failed to queue at mount time is never retried otherwise,
+  // and that interface then goes silent for good.
+  if (mouse_slot && !mouse_armed && tuh_hid_receive_ready(mouse_addr, mouse_inst))
+    mouse_armed = tuh_hid_receive_report(mouse_addr, mouse_inst);
+  if (kbd_slot && !kbd_armed && tuh_hid_receive_ready(kbd_addr, kbd_inst))
+    kbd_armed = tuh_hid_receive_report(kbd_addr, kbd_inst);
+}
 
 void core1_main(void) {
   sleep_ms(10);
@@ -50,9 +69,20 @@ void core1_main(void) {
   pio_cfg.pin_dp = PIN_USB_HOST_DP;
   tuh_configure(1, TUH_CFGID_RPI_PIO_USB_CONFIGURATION, &pio_cfg);
   tuh_init(1);
-  while (true)
+
+  absolute_time_t next_check = get_absolute_time();
+  while (true) {
     tuh_task();
+    if (absolute_time_diff_us(get_absolute_time(), next_check) > 0)
+      continue;
+    next_check = delayed_by_ms(get_absolute_time(), 50);
+    host_housekeeping();
+  }
 }
+
+// Red LED (D13) is lit while any keyboard key or mouse button is held, which
+// confirms input reports are reaching the firmware.
+static void led_update(void) { gpio_put(PIN_LED, kbd_any_key.load() || mouse_buttons.load() != 0); }
 
 static void send_hid(uint8_t id, const uint8_t *data63) {
   if (!tud_hid_ready())
@@ -67,6 +97,9 @@ int main(void) {
   gpio_init(PIN_5V_EN);
   gpio_set_dir(PIN_5V_EN, GPIO_OUT);
   gpio_put(PIN_5V_EN, 1);
+
+  gpio_init(PIN_LED);
+  gpio_set_dir(PIN_LED, GPIO_OUT);
 
   m2g::MouseGyroModel::Config gcfg{};
   gcfg.cal = m2g::parse_imu_calibration(sp::spi_rom_data_80, 0x28);
@@ -86,6 +119,7 @@ int main(void) {
 
   while (true) {
     tud_task();
+    led_update();
 
     if (g_need_attach && tud_mounted()) {
       g_pad.on_attach();
@@ -169,7 +203,9 @@ extern "C" void tuh_hid_mount_cb(uint8_t dev_addr, uint8_t instance, uint8_t con
   (void)desc_report;
   (void)desc_len;
   const uint8_t proto = tuh_hid_interface_protocol(dev_addr, instance);
-  tuh_hid_set_protocol(dev_addr, instance, HID_PROTOCOL_BOOT);
+  // TinyUSB has already put boot interfaces into boot protocol by now, so the
+  // reports below use the fixed boot layout. Other interfaces (media keys,
+  // NKRO, vendor) are never armed, so they are not polled.
 
   if (proto == HID_ITF_PROTOCOL_MOUSE) {
     mouse_addr = dev_addr;
@@ -179,7 +215,7 @@ extern "C" void tuh_hid_mount_cb(uint8_t dev_addr, uint8_t instance, uint8_t con
     acc_dx.store(0);
     acc_dy.store(0);
     mouse_buttons.store(0);
-    tuh_hid_receive_report(dev_addr, instance);
+    mouse_armed = tuh_hid_receive_report(dev_addr, instance);
     return;
   }
   if (proto == HID_ITF_PROTOCOL_KEYBOARD) {
@@ -187,6 +223,7 @@ extern "C" void tuh_hid_mount_cb(uint8_t dev_addr, uint8_t instance, uint8_t con
     kbd_inst = instance;
     kbd_slot = true;
     kbd_mounted.store(true);
+    kbd_any_key.store(false);
     kbd_mods.store(0);
     kbd_key0.store(0);
     kbd_key1.store(0);
@@ -194,7 +231,7 @@ extern "C" void tuh_hid_mount_cb(uint8_t dev_addr, uint8_t instance, uint8_t con
     kbd_key3.store(0);
     kbd_key4.store(0);
     kbd_key5.store(0);
-    tuh_hid_receive_report(dev_addr, instance);
+    kbd_armed = tuh_hid_receive_report(dev_addr, instance);
     return;
   }
 }
@@ -202,12 +239,15 @@ extern "C" void tuh_hid_mount_cb(uint8_t dev_addr, uint8_t instance, uint8_t con
 extern "C" void tuh_hid_umount_cb(uint8_t dev_addr, uint8_t instance) {
   if (mouse_slot && dev_addr == mouse_addr && instance == mouse_inst) {
     mouse_slot = false;
+    mouse_armed = false;
     mouse_mounted.store(false);
     mouse_buttons.store(0);
   }
   if (kbd_slot && dev_addr == kbd_addr && instance == kbd_inst) {
     kbd_slot = false;
+    kbd_armed = false;
     kbd_mounted.store(false);
+    kbd_any_key.store(false);
     kbd_mods.store(0);
     kbd_key0.store(0);
     kbd_key1.store(0);
@@ -220,18 +260,29 @@ extern "C" void tuh_hid_umount_cb(uint8_t dev_addr, uint8_t instance) {
 
 extern "C" void tuh_hid_report_received_cb(uint8_t dev_addr, uint8_t instance,
                                            uint8_t const *report, uint16_t len) {
-  if (mouse_slot && dev_addr == mouse_addr && instance == mouse_inst && len >= 3) {
-    mouse_buttons.store(report[0] & 0x1Fu);
-    acc_dx.fetch_add((int)(int8_t)report[1]);
-    acc_dy.fetch_add((int)(int8_t)report[2]);
-  } else if (kbd_slot && dev_addr == kbd_addr && instance == kbd_inst && len >= 8) {
-    kbd_mods.store(report[0]);
-    kbd_key0.store(report[2]);
-    kbd_key1.store(report[3]);
-    kbd_key2.store(report[4]);
-    kbd_key3.store(report[5]);
-    kbd_key4.store(report[6]);
-    kbd_key5.store(report[7]);
+  if (mouse_slot && dev_addr == mouse_addr && instance == mouse_inst) {
+    if (len >= 3) {
+      mouse_buttons.store(report[0] & 0x1Fu);
+      acc_dx.fetch_add((int)(int8_t)report[1]);
+      acc_dy.fetch_add((int)(int8_t)report[2]);
+    }
+    mouse_armed = tuh_hid_receive_report(dev_addr, instance);
+    return;
   }
-  tuh_hid_receive_report(dev_addr, instance);
+
+  if (kbd_slot && dev_addr == kbd_addr && instance == kbd_inst) {
+    if (len >= 8) {
+      kbd_mods.store(report[0]);
+      kbd_key0.store(report[2]);
+      kbd_key1.store(report[3]);
+      kbd_key2.store(report[4]);
+      kbd_key3.store(report[5]);
+      kbd_key4.store(report[6]);
+      kbd_key5.store(report[7]);
+      kbd_any_key.store(report[0] || report[2] || report[3] || report[4] || report[5] ||
+                        report[6] || report[7]);
+    }
+    kbd_armed = tuh_hid_receive_report(dev_addr, instance);
+    return;
+  }
 }
