@@ -8,6 +8,10 @@
 //   USB Stack: Adafruit TinyUSB  (so Serial is USB-C CDC)
 // Library Manager: "USB Host Shield Library 2.0" (felis/USB_Host_Shield_2.0)
 //
+// The MouseReportParser subclass follows that library's USBHIDBootMouse example.
+// The library is GPL-2.0, so a binary built from this sketch is GPL-2.0 as well;
+// this source file itself is MIT like the rest of the repo. See CREDITS.md.
+//
 // Protocol: every 8 ms, if a mouse is up, print one line (even if dx=dy=0):
 //   M <dx> <dy> <buttons>\n
 

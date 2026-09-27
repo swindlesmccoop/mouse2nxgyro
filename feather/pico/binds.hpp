@@ -2,8 +2,8 @@
 
 #include <cstdint>
 
-// Keyboard + mouse-button mapping baked from config/binds.json (same table as
-// scripts/binds.py). No PC reload in the play path.
+// Keyboard + mouse-button mapping. Hand-kept copy of config/binds.json (which
+// scripts/binds.py reads for the relay); nothing generates it, so change both.
 
 void binds_map(uint8_t mods, const uint8_t keys[6], uint8_t mouse_btns, float *lx, float *ly,
                uint32_t *pad_bits);

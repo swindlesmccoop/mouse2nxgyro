@@ -1,5 +1,12 @@
 // Native USB-C: Nintendo Switch Pro Controller (VID/PID 057E:2009).
 // Report descriptor matches a real wired Pro pad (203 bytes).
+//
+// The report descriptor bytes and the manufacturer / product strings are those
+// of esp-cpp/espp components/switch_pro (espp::switch_pro_descriptor(), built
+// with hid-rp), espp commit 038eea4a63d3bc4c287b6c1420924a646abb5ee2, MIT
+// License, Copyright (c) 2022 esp-cpp. The descriptor callbacks follow TinyUSB's
+// examples/device/*/src/usb_descriptors.c, MIT License, Copyright (c) 2019
+// Ha Thach (tinyusb.org). See CREDITS.md.
 
 #include "tusb.h"
 

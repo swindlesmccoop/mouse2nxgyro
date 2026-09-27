@@ -18,6 +18,10 @@ constexpr uint8_t kF = 0x09;
 constexpr uint8_t kSpace = 0x2C;
 constexpr uint8_t kEsc = 0x29;
 constexpr uint8_t kTab = 0x2B;
+constexpr uint8_t kHome = 0x4A;
+constexpr uint8_t kMinus = 0x2D;
+constexpr uint8_t kPrintScreen = 0x46;
+constexpr uint8_t kY = 0x1C;
 constexpr uint8_t kRight = 0x4F;
 constexpr uint8_t kLeft = 0x50;
 constexpr uint8_t kDown = 0x51;
@@ -63,19 +67,25 @@ void binds_map(uint8_t mods, const uint8_t keys[6], uint8_t mouse_btns, float *l
   if (usage_held(kSpace, keys))
     bits |= btn_b;
   if (mods & kModLShift)
-    bits |= btn_a;
+    bits |= btn_zl;
   if (usage_held(kE, keys))
-    bits |= btn_x;
+    bits |= btn_r;
   if (usage_held(kQ, keys))
-    bits |= btn_y;
+    bits |= btn_x;
   if (usage_held(kR, keys))
     bits |= btn_plus;
   if (usage_held(kF, keys))
-    bits |= btn_minus;
-  if (usage_held(kEsc, keys))
+    bits |= btn_a;
+  if (usage_held(kEsc, keys) || usage_held(kHome, keys))
     bits |= btn_home;
   if (usage_held(kTab, keys))
+    bits |= btn_r3;
+  if (usage_held(kMinus, keys))
+    bits |= btn_minus;
+  if (usage_held(kPrintScreen, keys))
     bits |= btn_capture;
+  if (usage_held(kY, keys))
+    bits |= btn_y;
   if (usage_held(kUp, keys))
     bits |= btn_dpad_up;
   if (usage_held(kDown, keys))
@@ -86,13 +96,13 @@ void binds_map(uint8_t mods, const uint8_t keys[6], uint8_t mouse_btns, float *l
     bits |= btn_dpad_right;
 
   if (mouse_btns & kMouseLeft)
-    bits |= btn_l;
-  if (mouse_btns & kMouseRight)
-    bits |= btn_r;
-  if (mouse_btns & kMouseForward)
-    bits |= btn_zl;
-  if (mouse_btns & kMouseBack)
     bits |= btn_zr;
+  if (mouse_btns & kMouseRight)
+    bits |= btn_zl;
+  if (mouse_btns & kMouseForward)
+    bits |= btn_l;
+  if (mouse_btns & kMouseBack)
+    bits |= btn_r;
   if (mouse_btns & kMouseMiddle)
     bits |= btn_r3;
 

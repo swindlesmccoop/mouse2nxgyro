@@ -41,6 +41,8 @@ HID_USAGE.update(
         "f10": 0x43,
         "f11": 0x44,
         "f12": 0x45,
+        "printscreen": 0x46,
+        "home": 0x4A,
         "right": 0x4F,
         "left": 0x50,
         "down": 0x51,

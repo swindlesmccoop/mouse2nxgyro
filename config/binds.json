@@ -7,23 +7,27 @@
   },
   "keys": {
     "space": "b",
-    "lshift": "a",
-    "e": "x",
-    "q": "y",
+    "lshift": "zl",
+    "e": "r",
+    "q": "x",
     "r": "plus",
-    "f": "minus",
+    "f": "a",
     "escape": "home",
-    "tab": "capture",
+    "home": "home",
+    "tab": "r3",
+    "minus": "minus",
+    "printscreen": "capture",
+    "y": "y",
     "up": "dpad_up",
     "down": "dpad_down",
     "left": "dpad_left",
     "right": "dpad_right"
   },
   "mouse": {
-    "left": "l",
-    "right": "r",
-    "forward": "zl",
-    "back": "zr",
+    "left": "zr",
+    "right": "zl",
+    "forward": "l",
+    "back": "r",
     "middle": "r3"
   }
 }
