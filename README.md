@@ -11,3 +11,13 @@ I will write a better readme soon. This allows you to use an RP2040 and plug in 
 - [SwitchProconGyroMouse](https://github.com/Bokuchin/SwitchProconGyroMouse)
 
 More in [`CREDITS.md`](CREDITS.md).
+
+## Hardware Required
+- USB Mouse
+- USB Keyboard
+- [StarTech USB 2.0 Powered Hub](https://www.amazon.com/StarTech-com-Port-Compact-Black-USB/dp/B000T9S4CI) - this is the only one I got to work after testing four different hubs; many wouldn't enumerate at all
+- Nintendo Switch - theoretically should work for the Switch 2 as well, but I don't have one
+  - You MUST enable Wired Pro Controller Communication
+
+## AI Disclosure
+A large portion of this was written with the assistance of Fable 5.1. All features and functionality on the master branch were tested and verified by hand. Some of the experimental features on other branches (Bluetooth, ESP32, etc) are here for documentation and most likely do not work as intended.
