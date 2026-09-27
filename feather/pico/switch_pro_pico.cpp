@@ -1,3 +1,15 @@
+// Switch Pro Controller protocol engine for the RP2040 (no FreeRTOS / esp-idf).
+//
+// Ported from esp-cpp/espp components/switch_pro (src/switch_pro.cpp and
+// src/protocol.cpp: handshake, subcommand replies, SPI-flash reads), espp commit
+// 038eea4a63d3bc4c287b6c1420924a646abb5ee2, MIT License, Copyright (c) 2022
+// esp-cpp. espp in turn follows Brikwerk/nxbt nxbt/controller/protocol.py (MIT).
+// Protocol constants and SPI ROM data are included from espp unmodified.
+// Changes: plain C++ without espp's task/timer/logger, a single pending reply
+// instead of a queue, deterministic serial and MAC, IMU frames from the mouse
+// model, and user stick calibration cleared (see the constructor).
+// See CREDITS.md.
+
 #include "switch_pro_pico.hpp"
 
 #include "detail/switch_controller_protocol.hpp"
@@ -21,8 +33,9 @@ uint16_t stick_from_float(float v) {
   int n = static_cast<int>(raw);
   if (n < 0)
     n = 0;
-  if (n > 4096)
-    n = 4096;
+  // 12-bit field: 4096 would wrap to 0 in pack12() and read as full negative.
+  if (n > 4095)
+    n = 4095;
   return static_cast<uint16_t>(n);
 }
 
@@ -42,6 +55,13 @@ PicoSwitchPro::PicoSwitchPro() {
   std::memcpy(user_, sp::spi_rom_data_80, sizeof(sp::spi_rom_data_80));
   if (sizeof(sp::spi_rom_data_80) < sizeof(user_))
     std::memset(user_ + sizeof(sp::spi_rom_data_80), 0xFF, sizeof(user_) - sizeof(sp::spi_rom_data_80));
+
+  // The upstream user stick calibration has a zero range below center, and the
+  // Switch prefers user cal over factory when its magic is present, so every
+  // deflection lands on the negative side. Clear both stick magics so the
+  // factory calibration (center 2048, +2047/-2048) is used instead.
+  std::memset(user_ + sp::REG_USER_ANALOG_START, 0xFF, 2);
+  std::memset(user_ + sp::REG_USER_ANALOG_START + 11, 0xFF, 2);
 
   static constexpr char kSerial[] = "00000000001";
   std::memcpy(factory_, kSerial, 11);
